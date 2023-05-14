@@ -1,5 +1,5 @@
 from django.contrib.auth.models import User
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 from api.models import Movie, Rating
+from api.permissions import CustomPermission
 from api.serializers import MovieSerializer, RatingSerializer, UserSerializer
 
 
@@ -66,11 +67,22 @@ class RatingViewSet(viewsets.ModelViewSet):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
     authentication_classes = (TokenAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    # permission_classes = (IsAuthenticated, )
+    permission_classes = (CustomPermission, )
+
+    # Owner data filtering
+    def list(self, request, *args, **kwargs):
+        queryset = Rating.objects.filter(user=request.user.id)
+        serializer = RatingSerializer(queryset, many=True)
+        return Response(serializer.data, status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
-        response = {'message': 'You can update'}
-        return Response(response, status=status.HTTP_400_BAD_REQUEST)
+        user = request.user
+
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
 
     def create(self, request, *args, **kwargs):
         response = {'message': 'You can create'}
