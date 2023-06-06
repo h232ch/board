@@ -3,17 +3,20 @@ from django.shortcuts import render, get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 
 from api.models import Movie, Rating
-from api.permissions import CustomPermission
+# from api.permissions import CustomPermission
 from api.serializers import MovieSerializer, RatingSerializer, UserSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    # authentication_classes = (TokenAuthentication,)
+    permission_classes = (AllowAny, )
+    # permission_classes = (IsAuthenticated, )
 
 
 class MovieViewSet(viewsets.ModelViewSet):
@@ -68,7 +71,7 @@ class RatingViewSet(viewsets.ModelViewSet):
     serializer_class = RatingSerializer
     authentication_classes = (TokenAuthentication,)
     # permission_classes = (IsAuthenticated, )
-    permission_classes = (CustomPermission, )
+    # permission_classes = (CustomPermission, )
 
     # Owner data filtering
     def list(self, request, *args, **kwargs):

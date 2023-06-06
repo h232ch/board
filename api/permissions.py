@@ -1,5 +1,5 @@
 from rest_framework import permissions
-from .models import User
+from api.models import User
 
 
 class CustomPermission(permissions.BasePermission):
@@ -12,4 +12,5 @@ class CustomPermission(permissions.BasePermission):
         print(obj.user)
         print(request.user)
         return True
+
 
