@@ -1,15 +1,8 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
-
-from api.models import Movie, Rating
-
-
-class MovieSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Movie
-        fields = ('id', 'title', 'description',
-                  'no_of_ratings', 'avg_ratings')
+from rest_framework.pagination import PageNumberPagination
+from api.models import Movie, Rating, BoardComment
 
 
 class RatingSerializer(serializers.ModelSerializer):
@@ -44,4 +37,37 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         Token.objects.create(user=user)
         return user
+
+
+class BoardCommentSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
+
+    class Meta:
+        model = BoardComment
+        fields = ('id', 'user', 'movie', 'comment', 'pub_date')
+
+
+class MovieSerializer(serializers.ModelSerializer):
+    # Fixing user
+    user = serializers.ReadOnlyField(source='user.username')
+    comments = BoardCommentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Movie
+        fields = ('id', 'title', 'pub_date', 'description',
+                  'no_of_ratings', 'avg_ratings', 'user', 'comments')
+
+
+class MovieListSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
+
+    class Meta:
+        model = Movie
+        fields = ('id', 'title', 'pub_date', 'user')
+
+
+class PaginationSet (PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+
 

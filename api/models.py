@@ -4,8 +4,10 @@ from django.db import models
 
 
 class Movie(models.Model):
-    title = models.CharField(max_length=32)
+    title = models.CharField(max_length=100)
     description = models.TextField(max_length=360)
+    pub_date = models.DateTimeField(null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
 
     # Custom data which can be used in serializer's fields
     def no_of_ratings(self):
@@ -21,6 +23,13 @@ class Movie(models.Model):
             return sum / len(ratings)
         else:
             return 0
+
+
+class BoardComment(models.Model):
+    movie = models.ForeignKey(Movie, related_name='comments', on_delete=models.CASCADE, null=True)
+    comment = models.TextField(max_length=360)
+    pub_date = models.DateTimeField(null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
 
 
 class Rating(models.Model):

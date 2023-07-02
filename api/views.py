@@ -1,3 +1,4 @@
+from rest_framework import mixins
 from django.contrib.auth.models import User
 from django.shortcuts import render, get_object_or_404
 from rest_framework import viewsets, status
@@ -5,10 +6,13 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet
 
-from api.models import Movie, Rating
+from api.models import Movie, Rating, BoardComment
+from api.permissions import CustomPermission
 # from api.permissions import CustomPermission
-from api.serializers import MovieSerializer, RatingSerializer, UserSerializer
+from api.serializers import MovieSerializer, RatingSerializer, UserSerializer, PaginationSet, BoardCommentSerializer, \
+    MovieListSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -19,14 +23,32 @@ class UserViewSet(viewsets.ModelViewSet):
     # permission_classes = (IsAuthenticated, )
 
 
-class MovieViewSet(viewsets.ModelViewSet):
-    queryset = Movie.objects.all()
+class BoardCommentSet(viewsets.ModelViewSet):
+    queryset = BoardComment.objects.all()
+    serializer_class = BoardCommentSerializer
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated, )
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class MovieViewSet(mixins.CreateModelMixin,
+                   mixins.RetrieveModelMixin,
+                   mixins.UpdateModelMixin,
+                   mixins.DestroyModelMixin,
+                   GenericViewSet):
+    queryset = Movie.objects.order_by("-pub_date").all()
     serializer_class = MovieSerializer
+    pagination_class = PaginationSet
 
     # Token auth settings
     authentication_classes = (TokenAuthentication, )
     # permission_classes = (AllowAny, )
     permission_classes = (IsAuthenticated, )
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
     # We can make a custom login like below
     # http://localhost:8000/api/movies/1/rate_movie/
@@ -47,7 +69,6 @@ class MovieViewSet(viewsets.ModelViewSet):
 
             try:
                 rating = Rating.objects.get(user=user.id, movie=movie.id)
-
                 # Code should be changed (the star number should be 0-5)
                 rating.stars = stars
                 rating.save()
@@ -55,7 +76,6 @@ class MovieViewSet(viewsets.ModelViewSet):
                 serializer = RatingSerializer(rating, many=False)
                 response = {'message': 'Rating updated', 'result': serializer.data}
                 return Response(response, status=status.HTTP_200_OK)
-
             except:
                 rating = Rating.objects.create(user=user, movie=movie, stars=stars)
                 serializer = RatingSerializer(rating, many=False)
@@ -90,4 +110,13 @@ class RatingViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         response = {'message': 'You can create'}
         return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MovieListViewSet(mixins.ListModelMixin, GenericViewSet):
+    pagination_class = PaginationSet
+
+    queryset = Movie.objects.order_by('-pub_date').all()
+    serializer_class = MovieListSerializer
+    permission_classes = (AllowAny, )
+
 
