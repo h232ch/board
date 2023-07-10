@@ -19,7 +19,7 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     # authentication_classes = (TokenAuthentication,)
-    permission_classes = (AllowAny, )
+    permission_classes = (AllowAny,)
     # permission_classes = (IsAuthenticated, )
 
 
@@ -27,35 +27,31 @@ class BoardCommentSet(viewsets.ModelViewSet):
     queryset = BoardComment.objects.all()
     serializer_class = BoardCommentSerializer
     authentication_classes = (TokenAuthentication,)
-    permission_classes = (IsAuthenticated, )
+    permission_classes = (IsAuthenticated,)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
 
-class MovieViewSet(mixins.CreateModelMixin,
-                   mixins.RetrieveModelMixin,
-                   mixins.UpdateModelMixin,
-                   mixins.DestroyModelMixin,
-                   GenericViewSet):
+class MovieViewSet(viewsets.ModelViewSet):
     queryset = Movie.objects.order_by("-pub_date").all()
     serializer_class = MovieSerializer
     pagination_class = PaginationSet
 
     # Token auth settings
-    authentication_classes = (TokenAuthentication, )
+    authentication_classes = (TokenAuthentication,)
     # permission_classes = (AllowAny, )
-    permission_classes = (IsAuthenticated, )
+    permission_classes = (IsAuthenticated,)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
     # We can make a custom login like below
     # http://localhost:8000/api/movies/1/rate_movie/
+    # detail True means "we are going to use this after detail url")
     @action(detail=True, methods=['POST'])
     def rate_movie(self, request, pk=None):
         if 'stars' in request.data:
-
             movie = Movie.objects.get(id=pk)
             stars = request.data['stars']
 
@@ -86,10 +82,13 @@ class MovieViewSet(mixins.CreateModelMixin,
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
 
+
+
 class RatingViewSet(viewsets.ModelViewSet):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
     authentication_classes = (TokenAuthentication,)
+
     # permission_classes = (IsAuthenticated, )
     # permission_classes = (CustomPermission, )
 
@@ -112,11 +111,40 @@ class RatingViewSet(viewsets.ModelViewSet):
         return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
 
-class MovieListViewSet(mixins.ListModelMixin, GenericViewSet):
+class MovieListViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, GenericViewSet):
     pagination_class = PaginationSet
 
     queryset = Movie.objects.order_by('-pub_date').all()
     serializer_class = MovieListSerializer
-    permission_classes = (AllowAny, )
+    permission_classes = (AllowAny,)
 
+    def list(self, request, *args, **kwargs):
+        if 'search' in request.query_params:
+            search = request.query_params['search']
+            queryset = Movie.objects.order_by("-pub_date").filter(title__contains=search)
+
+            page = self.paginate_queryset(queryset)
+            serializer = self.get_serializer(page, many=True)
+
+            result = self.get_paginated_response(serializer.data)
+            return Response(result.data, status=status.HTTP_200_OK)
+        else:
+            queryset = self.get_queryset()
+
+            page = self.paginate_queryset(queryset)
+            serializer = self.get_serializer(page, many=True)
+
+            result = self.get_paginated_response(serializer.data)
+            return Response(result.data, status=status.HTTP_200_OK)
+
+    # def create(self, request):
+    #     if 'search' in request.data:
+    #         search = request.data['search']
+    #         queryset = Movie.objects.order_by("-pub_date").filter(title__contains=search)
+    #
+    #         page = self.paginate_queryset(queryset)
+    #         serializer = self.get_serializer(page, many=True)
+    #
+    #         result = self.get_paginated_response(serializer.data)
+    #         return Response(result.data, status=status.HTTP_200_OK)
 
