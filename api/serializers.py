@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import PageNumberPagination
-from api.models import Movie, Rating, BoardComment
+from api.models import Movie, Rating, BoardComment, Rule, Dog
 
 
 class RatingSerializer(serializers.ModelSerializer):
@@ -70,4 +70,15 @@ class PaginationSet (PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
 
+
+class DogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Dog
+        fields = '__all__'
+
+
+class RuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Rule
+        fields = ('id', 'data',)
 

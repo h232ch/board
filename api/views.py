@@ -8,11 +8,13 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-from api.models import Movie, Rating, BoardComment
+from api.models import Movie, Rating, BoardComment, Rule, Dog
 from api.permissions import CustomPermission
 # from api.permissions import CustomPermission
 from api.serializers import MovieSerializer, RatingSerializer, UserSerializer, PaginationSet, BoardCommentSerializer, \
-    MovieListSerializer
+    MovieListSerializer, DogSerializer, RuleSerializer
+
+import ipaddress
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -82,8 +84,6 @@ class MovieViewSet(viewsets.ModelViewSet):
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
 class RatingViewSet(viewsets.ModelViewSet):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
@@ -148,3 +148,105 @@ class MovieListViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, GenericVi
     #         result = self.get_paginated_response(serializer.data)
     #         return Response(result.data, status=status.HTTP_200_OK)
 
+
+class DogViewSet(viewsets.ModelViewSet):
+    queryset = Dog.objects.all()
+    serializer_class = DogSerializer
+    permission_classes = (AllowAny, )
+    pagination_class = PaginationSet
+
+
+def compare_ip_networks(network_str1, network_str2):
+
+    if network_str1.find('/') == -1:
+        network_str1 = network_str1 + '/32'
+    if network_str2.find('/') == -1:
+        network_str2 = network_str2 + '/32'
+
+    try:
+        network1 = ipaddress.ip_network(network_str1, strict=False)
+        network2 = ipaddress.ip_network(network_str2, strict=False)
+
+        # Compare the networks
+        if network1 == network2:
+            return True
+        elif network1.overlaps(network2):
+            return True
+        else:
+            return False
+
+    except ipaddress.AddressValueError as e:
+        print(f"Invalid network address: {e}")
+        return "Invalid network address."
+
+
+class RuleViewSet(viewsets.ModelViewSet):
+    queryset = Rule.objects.all()
+    serializer_class = RuleSerializer
+    permission_classes = (AllowAny, )
+    pagination_class = PaginationSet
+
+    def list(self, request, *args, **kwargs):
+        if ('src' in request.query_params) or ('dst' in request.query_params)\
+                or ('port' in request.query_params):
+
+            searchSrc = request.query_params['src']
+            searchDst = request.query_params['dst']
+            searchPort = request.query_params['port']
+            queryset = self.get_queryset()
+
+            p_result = []
+            d_result = []
+            s_result = []
+
+            for i in queryset:
+                if searchPort != '':
+                    for svc in i.data['service']:
+                        for k, v in svc.items():
+                            for k, v in v.items():
+                                if k != 'description':
+                                    if searchPort == v:
+                                        p_result.append(i.id)
+
+                source = i.data['source']
+                destination = i.data['destination']
+                for src in source:
+                    if searchSrc != '':
+                        if compare_ip_networks(searchSrc, src['ip']):
+                            s_result.append(i.id)
+                for dst in destination:
+                    if searchDst != '':
+                        if compare_ip_networks(searchDst, dst['ip']):
+                            d_result.append(i.id)
+
+            if searchSrc != '' and searchDst != '' and searchPort != '':
+                result = list(set(p_result) & set(d_result) & set(s_result))
+            elif searchSrc != '' and searchDst != '':
+                result = list(set(d_result) & set(s_result))
+            elif searchSrc != '' and searchPort != '':
+                result = list(set(p_result) & set(s_result))
+            elif searchDst != '' and searchPort != '':
+                result = list(set(p_result) & set(d_result))
+            else:
+                result = list(set(p_result) | set(d_result) | set(s_result))
+
+            queryset = Rule.objects.filter(id__in=result)
+            # page = self.paginate_queryset(queryset)
+            serializer = self.get_serializer(many=True)
+
+            serializer = RuleSerializer(queryset, many=True)
+            return Response({'result': serializer.data}, status.HTTP_200_OK)
+
+            # result = self.get_paginated_response(serializer.data)
+            # return Response(result.data, status=status.HTTP_200_OK)
+
+        else:
+            queryset = self.get_queryset()
+            # page = self.paginate_queryset(queryset)
+            # serializer = self.get_serializer( many=True)
+
+            # result = self.get_paginated_response(serializer.data)
+            # return Response(result.data, status=status.HTTP_200_OK)
+
+            serializer = RuleSerializer(queryset, many=True)
+            return Response({'result': serializer.data}, status.HTTP_200_OK)

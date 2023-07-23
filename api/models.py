@@ -50,3 +50,16 @@ class Rating(models.Model):
         unique_together = (('user', 'movie'), )
         index_together = (('user', 'movie'), )
 
+
+class Rule(models.Model):
+    data = models.JSONField(null=True)
+
+
+class Dog(models.Model):
+    name = models.CharField(max_length=200)
+    data = models.JSONField(null = True)
+
+    def __str__(self):
+        return self.name
+
+
