@@ -1,17 +1,22 @@
+from django.contrib.auth import get_user_model
 from rest_framework import mixins
 from django.contrib.auth.models import User
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.permissions import  AllowAny, IsAdminUser
+from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
-from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from api.models import Movie, Rating, BoardComment, Rule, Dog
-from api.permissions import IsOwnerOrReadOnly, IsAdminOrIsOwnerOrReadOnly
+from api.permissions import IsOwnerOrReadOnly
 from api.serializers import MovieSerializer, RatingSerializer, UserSerializer, PaginationSet, BoardCommentSerializer, \
     MovieListSerializer, DogSerializer, RuleSerializer
 
@@ -21,11 +26,33 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 
+
+
 # Jwt view setting
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def example_view(request):
     return Response({"message": "You are authenticated!"})
+
+
+class SecretView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        return Response({"message": "You have accessed the secret view!"})
+
+
+class UserCheckView(APIView):
+    authentication_classes = (JWTAuthentication, )
+    permission_classes = (IsAuthenticated, )
+
+    def get(self, request):
+        if request.user:
+            user = request.user
+            # Your view logic...
+            return Response({'user': user.username}, status.HTTP_200_OK)
+        else:
+            return Response({'message': 'You are not login'}, status.HTTP_403_FORBIDDEN)
 
 
 # class UserViewSet(viewsets.ModelViewSet):
@@ -38,7 +65,7 @@ class UserViewSet(mixins.CreateModelMixin, GenericViewSet):
 class BoardCommentSet(viewsets.ModelViewSet):
     queryset = BoardComment.objects.all()
     serializer_class = BoardCommentSerializer
-    authentication_classes = (TokenAuthentication,)
+    authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated, IsOwnerOrReadOnly | IsAdminUser)
 
     def perform_create(self, serializer):
@@ -51,7 +78,7 @@ class MovieViewSet(viewsets.ModelViewSet):
     pagination_class = PaginationSet
 
     # Token auth settings
-    authentication_classes = (TokenAuthentication,)
+    authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated, IsOwnerOrReadOnly | IsAdminUser )
 
     def perform_create(self, serializer):
@@ -86,7 +113,7 @@ class MovieViewSet(viewsets.ModelViewSet):
 class RatingViewSet(viewsets.ModelViewSet):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
-    authentication_classes = (TokenAuthentication,)
+    authentication_classes = (JWTAuthentication,)
 
     # Owner data filtering
     def list(self, request, *args, **kwargs):
@@ -107,7 +134,6 @@ class RatingViewSet(viewsets.ModelViewSet):
 
 class MovieListViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, GenericViewSet):
     pagination_class = PaginationSet
-
     queryset = Movie.objects.order_by('-pub_date').all()
     serializer_class = MovieListSerializer
     authentication_classes = (TokenAuthentication,)
@@ -171,7 +197,7 @@ def compare_ip_networks(network_str1, network_str2):
 class RuleViewSet(mixins.ListModelMixin, GenericViewSet):
     queryset = Rule.objects.all()
     serializer_class = RuleSerializer
-    authentication_classes = (TokenAuthentication, )
+    authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated, )
     pagination_class = PaginationSet
 

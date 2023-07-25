@@ -82,3 +82,8 @@ class RuleSerializer(serializers.ModelSerializer):
         model = Rule
         fields = ('id', 'data',)
 
+
+class JwtUserSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    email = serializers.EmailField()
+
